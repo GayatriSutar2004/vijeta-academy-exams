@@ -25,6 +25,9 @@ class EnhancedQuestionParser {
             
             this.extractImagesFromDocx(filePath);
             
+            // First, extract Answer Key if present
+            this.parseAnswerKey(text);
+            
             this.parseDocumentContent(text);
             
             console.log('=== PARSING RESULTS ===');
@@ -144,6 +147,35 @@ class EnhancedQuestionParser {
         
         this.finalizeCurrentQuestion();
         this.applyAnswerKey();
+    }
+
+    // Handle Answer Key section parsing
+    parseAnswerKey(text) {
+        const lines = text.split('\n');
+        let inAnswerKeySection = false;
+        
+        for (const line of lines) {
+            const trimmed = line.trim();
+            
+            // Detect Answer Key section
+            if (trimmed.match(/^Answer\s*Key/i) || trimmed.match(/^ANSWER\s*KEY/i)) {
+                inAnswerKeySection = true;
+                this.currentSection = { name: 'Answer Key', questions: [] };
+                console.log('Found Answer Key section');
+                continue;
+            }
+            
+            if (inAnswerKeySection && trimmed) {
+                // Format may be like "Q1. A" or "1. A" or just "A" for each question
+                const qMatch = trimmed.match(/^(?:Q\.?)?\s*(\d+)[\.\)]\s*([A-D])/i);
+                if (qMatch) {
+                    const qNum = parseInt(qMatch[1]);
+                    const answer = qMatch[2].toUpperCase();
+                    this.answerKeyMap.set(qNum, answer);
+                    console.log('Answer Key: Q' + qNum + ' = ' + answer);
+                }
+            }
+        }
     }
 
     isSectionHeader(line) {
