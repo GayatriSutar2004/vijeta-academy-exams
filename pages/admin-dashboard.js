@@ -32,6 +32,7 @@ export default function AdminDashboard() {
   const [editTargetBatch, setEditTargetBatch] = useState("");
   const [editTargetYear, setEditTargetYear] = useState("");
   const [editStatus, setEditStatus] = useState("");
+  const [editReassign, setEditReassign] = useState(true);
 
   // Student form state
   const [sName, setSName] = useState("");
@@ -283,7 +284,8 @@ export default function AdminDashboard() {
           exam_status: editStatus,
           exam_type: editExamType,
           target_batch_name: editTargetBatch,
-          target_admission_year: parseInt(editTargetYear) || null
+          target_admission_year: parseInt(editTargetYear) || null,
+          reassign: editReassign
         })
       });
       if (res.ok) {
@@ -1589,6 +1591,25 @@ export default function AdminDashboard() {
                         <option value="Draft">Draft</option>
                       </select>
                     </div>
+                  </div>
+
+                  <div style={{ marginTop: '15px', padding: '10px', backgroundColor: '#e7f3ff', borderRadius: '4px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={editReassign} 
+                        onChange={(e) => setEditReassign(e.target.checked)}
+                        style={{ width: '18px', height: '18px' }}
+                      />
+                      <span style={{ fontWeight: 'bold', color: '#1e5bbf' }}>
+                        Re-assign students based on new criteria
+                      </span>
+                    </label>
+                    {editReassign && (
+                      <p style={{ margin: '5px 0 0 26px', fontSize: '12px', color: '#666' }}>
+                        Students matching the exam type, batch and year will be assigned automatically
+                      </p>
+                    )}
                   </div>
 
                   <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>

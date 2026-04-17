@@ -442,7 +442,8 @@ router.put('/:examId', async (req, res) => {
     exam_status,
     exam_type,
     target_batch_name,
-    target_admission_year
+    target_admission_year,
+    reassign
   } = req.body;
   
   try {
@@ -459,6 +460,23 @@ router.put('/:examId', async (req, res) => {
       WHERE exam_id = ?`,
       [exam_name, exam_date, exam_time, duration_minutes, exam_status, exam_type, target_batch_name, target_admission_year, examId]
     );
+    
+    // Auto-assign students when exam is updated (unless explicitly disabled)
+    const doReassign = reassign !== false;
+    if (doReassign) {
+      // Clear existing assignments and reassign based on new criteria
+      await db.query('DELETE FROM exam_students WHERE exam_id = ?', [examId]);
+      
+      const assignmentConfig = {
+        examType: exam_type,
+        targetBatchName: target_batch_name,
+        targetAdmissionYear: target_admission_year
+      };
+      
+      const assignedStudents = await assignExamToEligibleStudents(examId, assignmentConfig);
+      console.log(`Reassigned ${assignedStudents} students after exam update`);
+    }
+    
     res.json({ message: "Exam updated successfully" });
   } catch(err) {
     console.log("DB ERROR:", err);
