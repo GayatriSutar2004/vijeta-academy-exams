@@ -255,9 +255,11 @@ router.get('/:attemptId', async (req, res) => {
         `, [attemptId]);
 
         const attemptPerformance = performanceResult[0];
-        const maxMarks = Number(attempt[0].total_marks || 0);
+        const totalQuestions = Number(attempt[0].total_questions || responses.length);
+        const correctAnswers = Number(attemptPerformance.correct_answers || 0);
+        const maxMarks = totalQuestions; // Each question has 1 mark by default
         const percentage = maxMarks > 0
-            ? (Number(attemptPerformance.marks_obtained || 0) / maxMarks) * 100
+            ? (correctAnswers / maxMarks) * 100
             : 0;
         
         res.json({
