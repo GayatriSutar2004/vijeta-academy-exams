@@ -17,7 +17,7 @@ export default function ExamResult() {
 
     const fetchExamResult = async (attemptId) => {
         try {
-            const response = await fetch(`http://vijeta-api.onrender.com/api/exam-attempts/${attemptId}`);
+            const response = await fetch(`https://vijeta-api.onrender.com/api/exam-attempts/${attemptId}`);
             const data = await response.json();
 
             if (response.ok) {
@@ -233,4 +233,5 @@ export default function ExamResult() {
         </div>
     );
 }
+
 
