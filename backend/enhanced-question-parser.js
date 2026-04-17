@@ -278,6 +278,32 @@ class EnhancedQuestionParser {
     addOption(line) {
         if (!this.currentQuestion) return;
         
+        // Handle Hindi format where options are combined like "A) शेरB) बाघC) हाथीD) घोड़ा"
+        // Split combined options into individual ones
+        const combinedPattern = /^([A-D])\)\s*(.+?)([A-D])\)\s*(.+?)([A-D])\)\s*(.+?)([A-D])\)\s*(.+)$/i;
+        const combinedMatch = line.match(combinedPattern);
+        
+        if (combinedMatch) {
+            // Found combined options - parse each one
+            this.currentQuestion.options.push({ label: 'A', text: combinedMatch[2].trim() });
+            this.currentQuestion.options.push({ label: 'B', text: combinedMatch[4].trim() });
+            this.currentQuestion.options.push({ label: 'C', text: combinedMatch[6].trim() });
+            this.currentQuestion.options.push({ label: 'D', text: combinedMatch[8].trim() });
+            console.log('Added 4 combined options from Hindi format');
+            return;
+        }
+        
+        // Also try pattern with just A at start for partial: "A) शेरB) बाघC) हाथी"
+        const partialPattern = /^([A-D])\)\s*(.+?)([A-D])\)\s*(.+?)([A-D])\)\s*(.+)$/i;
+        const partialMatch = line.match(partialPattern);
+        if (partialMatch) {
+            this.currentQuestion.options.push({ label: 'A', text: partialMatch[2].trim() });
+            this.currentQuestion.options.push({ label: 'B', text: partialMatch[4].trim() });
+            this.currentQuestion.options.push({ label: 'C', text: partialMatch[6].trim() });
+            console.log('Added 3 combined options');
+            return;
+        }
+        
         let cleanOption = line;
         let optionLetter = null;
         

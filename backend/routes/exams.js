@@ -156,8 +156,8 @@ router.post('/add', upload.single('file'), async (req, res) => {
 
     await insertParsedQuestions(parsedData, examId, file.path, res, {
       examType: exam_type || 'NDA',
-      targetBatchName: target_batch_name || null,
-      targetAdmissionYear: target_admission_year || null
+      targetBatchName: target_batch_name || '',
+      targetAdmissionYear: target_admission_year || ''
     });
   } catch (err) {
     console.log("DB ERROR:", err);
@@ -167,34 +167,37 @@ router.post('/add', upload.single('file'), async (req, res) => {
 
 async function assignExamToEligibleStudents(examId, { examType, targetBatchName, targetAdmissionYear }) {
   try {
-    const filters = ['exam_type = ?'];
-    const params = [examType];
+    // Build query based on what's provided
+    let query = 'SELECT student_id FROM students WHERE 1=1';
+    const params = [];
 
-    if (targetBatchName) {
-      filters.push('batch_name = ?');
+    // ALWAYS filter by exam type (required)
+    if (examType) {
+      query += ' AND exam_type = ?';
+      params.push(examType);
+    }
+
+    // If batch specified, add to filter
+    if (targetBatchName && targetBatchName.trim() !== '') {
+      query += ' AND batch_name = ?';
       params.push(targetBatchName);
     }
 
+    // If year specified, add to filter  
     if (targetAdmissionYear) {
-      filters.push('admission_year = ?');
+      query += ' AND admission_year = ?';
       params.push(Number(targetAdmissionYear));
     }
 
-    // First check if account_status column exists
-    let query = `SELECT student_id FROM students WHERE ${filters.join(' AND ')}`;
+    // Skip account_status filter if column doesn't exist
+    // query += ' AND (account_status = "Active" OR account_status IS NULL OR account_status = "")';
     
-    // Try to add account_status filter - if column doesn't exist, this won't affect results much
-    try {
-      const [testResult] = await db.query('SELECT account_status FROM students LIMIT 1');
-      query += ' AND (account_status = "Active" OR account_status IS NULL OR account_status = "")';
-    } catch (colErr) {
-      // Column doesn't exist, just skip the account_status filter
-      console.log('account_status column not found, skipping account status filter');
-    }
-
+    console.log('Assignment query:', query);
+    console.log('Params:', params);
+    
     const [students] = await db.query(query, params);
 
-    console.log(`Found ${students.length} students with exam_type: ${examType}`);
+    console.log(`Found ${students.length} students matching: exam_type=${examType}, batch=${targetBatchName}, year=${targetAdmissionYear}`);
 
     let assignedCount = 0;
     for (const student of students) {
