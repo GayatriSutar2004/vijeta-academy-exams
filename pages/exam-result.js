@@ -179,6 +179,21 @@ export default function ExamResult() {
                                     {response.question_text}
                                 </div>
                                 
+                                {response.image_path && (
+                                    <div style={{ marginTop: "15px", textAlign: "center" }}>
+                                        <img 
+                                            src={response.image_path} 
+                                            alt="Question illustration" 
+                                            style={{ 
+                                                maxWidth: "100%", 
+                                                maxHeight: "400px",
+                                                borderRadius: "8px",
+                                                boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+                                            }} 
+                                        />
+                                    </div>
+                                )}
+                                
                                 <div className={styles.answerDetails}>
                                     <div className={styles.selectedAnswer}>
                                         <strong>Your Answer:</strong> {response.selected_answer}

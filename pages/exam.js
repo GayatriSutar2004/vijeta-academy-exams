@@ -278,6 +278,20 @@ export default function ExamPage() {
           }}>
             Q{currentQ + 1}. {questions[currentQ].question_text}
           </h3>
+          {questions[currentQ].image_path && (
+            <div style={{ marginTop: "15px", textAlign: "center" }}>
+              <img 
+                src={questions[currentQ].image_path} 
+                alt="Question illustration" 
+                style={{ 
+                  maxWidth: "100%", 
+                  maxHeight: "400px",
+                  borderRadius: "8px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+                }} 
+              />
+            </div>
+          )}
         </div>
 
         {/* Options */}

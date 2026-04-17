@@ -96,6 +96,7 @@ router.get('/:attemptId', async (req, res) => {
                 q.question_text,
                 q.marks,
                 q.explanation_text,
+                q.image_path,
                 COALESCE(q.section_name, 'General') AS section_name,
                 (
                     SELECT GROUP_CONCAT(CONCAT(qo.option_label, ') ', qo.option_text) ORDER BY qo.option_label SEPARATOR '|')

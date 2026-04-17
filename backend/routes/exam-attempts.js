@@ -220,6 +220,7 @@ router.get('/:attemptId', async (req, res) => {
                 q.question_text,
                 q.marks,
                 q.explanation_text,
+                q.image_path,
                 (
                     SELECT qo.option_label
                     FROM question_options qo

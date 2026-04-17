@@ -1,4 +1,7 @@
 const mammoth = require('mammoth');
+const fs = require('fs');
+const path = require('path');
+const AdmZip = require('adm-zip');
 
 class EnhancedQuestionParser {
     constructor() {
@@ -7,25 +10,29 @@ class EnhancedQuestionParser {
         this.currentQuestion = null;
         this.questions = [];
         this.answerKeyMap = new Map();
+        this.extractedImages = [];
     }
 
     async parseWordDocument(filePath) {
         try {
             console.log('=== ENHANCED WORD DOCUMENT PARSING STARTED ===');
             
-            // Extract text from Word document
             const result = await mammoth.extractRawText({ path: filePath });
             const text = result.value;
             
             console.log('Document text length:', text.length);
             console.log('First 200 characters:', text.substring(0, 200));
             
-            // Parse the text for questions, options, and answers
+            this.extractImagesFromDocx(filePath);
+            
             this.parseDocumentContent(text);
             
             console.log('=== PARSING RESULTS ===');
             console.log('Sections found:', this.sections.length);
             console.log('Total questions extracted:', this.questions.length);
+            console.log('Images extracted:', this.extractedImages.length);
+            
+            this.linkImagesToQuestions();
             
             return {
                 sections: this.sections,
@@ -35,6 +42,59 @@ class EnhancedQuestionParser {
         } catch (error) {
             console.error('Error parsing Word document:', error);
             throw error;
+        }
+    }
+    
+    extractImagesFromDocx(filePath) {
+        try {
+            const zip = new AdmZip(filePath);
+            const mediaFiles = zip.getEntries().filter(entry => {
+                const entryName = entry.entryName.toLowerCase();
+                return entryName.startsWith('word/media/') && 
+                       (entryName.match(/\.(png|jpg|jpeg|gif|bmp|svg)$/i));
+            });
+            
+            const imagesDir = path.join(__dirname, '..', 'public', 'question-images');
+            if (!fs.existsSync(imagesDir)) {
+                fs.mkdirSync(imagesDir, { recursive: true });
+            }
+            
+            this.extractedImages = [];
+            
+            mediaFiles.forEach((mediaEntry, index) => {
+                const originalName = path.basename(mediaEntry.entryName);
+                const ext = path.extname(originalName);
+                const timestamp = Date.now();
+                const newFileName = `image_${timestamp}_${index}${ext}`;
+                const outputPath = path.join(imagesDir, newFileName);
+                
+                fs.writeFileSync(outputPath, mediaEntry.getData());
+                
+                this.extractedImages.push({
+                    originalName,
+                    storedName: newFileName,
+                    path: `/question-images/${newFileName}`,
+                    index: index
+                });
+                
+                console.log(`Extracted image: ${newFileName} (${originalName})`);
+            });
+            
+        } catch (error) {
+            console.warn('Could not extract images from docx:', error.message);
+            this.extractedImages = [];
+        }
+    }
+    
+    linkImagesToQuestions() {
+        if (this.extractedImages.length === 0) return;
+        
+        let imageIndex = 0;
+        for (const question of this.questions) {
+            if (imageIndex < this.extractedImages.length) {
+                question.image_path = this.extractedImages[imageIndex].path;
+                imageIndex++;
+            }
         }
     }
 
@@ -62,33 +122,26 @@ class EnhancedQuestionParser {
                 continue;
             }
             
-            // Detect section headers
             if (this.isSectionHeader(line)) {
                 this.startNewSection(line);
             }
-            // Detect question numbers
             else if (this.isQuestionStart(line)) {
                 this.startNewQuestion(line);
             }
-            // Detect options
             else if (this.isOption(line)) {
                 this.addOption(line);
             }
-            // Detect correct answers
             else if (this.isCorrectAnswer(line)) {
                 this.setCorrectAnswer(line);
             }
-            // Detect explanations
             else if (this.isExplanation(line)) {
                 this.addExplanation(line);
             }
-            // Add content to current question
             else if (this.currentQuestion) {
                 this.addQuestionContent(line);
             }
         }
         
-        // Finalize the last question
         this.finalizeCurrentQuestion();
         this.applyAnswerKey();
     }
@@ -103,18 +156,30 @@ class EnhancedQuestionParser {
             /^CHAPTER\s+\d+\b/i
         ];
         
-        // Check if it's a section header AND not a question
         return sectionPatterns.some(pattern => pattern.test(line)) && !this.isQuestionStart(line);
     }
 
     isQuestionStart(line) {
         const questionPatterns = [
             /^Q\.?\s*\d+/i,
+            /^Q\s*\.\s*\d+/i,
             /^Question\s*\d+/i,
-            /^\d+[\.\)]\s*/i
+            /^\d+[\.\)]\s*/i,
+            /^Que\.?\s*\d+/i,
+            /^\(\d+\)\s*/i,
+            /^\[\d+\]\s*/i
         ];
         
-        return questionPatterns.some(pattern => pattern.test(line)) && !this.isSectionHeader(line);
+        if (questionPatterns.some(pattern => pattern.test(line)) && !this.isSectionHeader(line)) {
+            return true;
+        }
+        
+        const flexiblePattern = /^([Qq]|[Qq]uestion|[Qq]ue)\s*[\.\:\-\)]*\s*\d+/;
+        if (flexiblePattern.test(line)) {
+            return true;
+        }
+        
+        return false;
     }
 
     isOption(line) {
@@ -122,14 +187,27 @@ class EnhancedQuestionParser {
             /^[A-D]\)\s*/i,
             /^[A-D]\.\s*/i,
             /^\([A-D]\)\s*/i,
-            /^\([A-D]\)\s*/i,
             /^[a-d]\)\s*/i,
             /^[a-d]\.\s*/i,
             /^Option\s*[A-D]/i,
-            /^Ans\s*[A-D]/i
+            /^Ans\s*[A-D]/i,
+            /^[A-D]\s*\)/i,
+            /^[A-D]\s*\./i,
+            /^\s*[A-D]\s*[\.\)]\s*/i,
+            /^\(\s*[A-D]\s*\)\s*/i,
+            /^\s*\[\s*[A-D]\s*\]\s*/i
         ];
         
-        return optionPatterns.some(pattern => pattern.test(line));
+        if (optionPatterns.some(pattern => pattern.test(line))) {
+            return true;
+        }
+        
+        const flexibleOptionPattern = /^\s*[A-Da-d]\s*[\.\)\:\-]\s*\w/;
+        if (flexibleOptionPattern.test(line)) {
+            return true;
+        }
+        
+        return false;
     }
 
     isCorrectAnswer(line) {
@@ -139,14 +217,19 @@ class EnhancedQuestionParser {
             /^Ans\s*[:\-]/i,
             /^Solution\s*[:\-]/i,
             /^[A-D]\s*is\s*correct/i,
-            /^The\s*correct\s*answer\s*is/i
+            /^The\s*correct\s*answer\s*is/i,
+            /^Ans\s*\.\s*[A-D]/i,
+            /^Correct\s*Ans\s*[:\-]/i,
+            /^Right\s*Ans/i,
+            /^\s*[A-D]\s+Correct/i,
+            /^\s*Correct\s+[A-D]/i
         ];
         
         return answerPatterns.some(pattern => pattern.test(line));
     }
 
     isAnswerKeyHeader(line) {
-        return /^(Answer\s*Key|AnswerKey|Anser\s*Key|AnserKey)\s*[:\-]/i.test(line);
+        return /^(Answer\s*Key|AnswerKey|Anser\s*Key|AnserKey)\s*[:\-]*/i.test(line);
     }
 
     isExplanation(line) {
@@ -155,14 +238,15 @@ class EnhancedQuestionParser {
             /^Reason\s*[:\-]/i,
             /^Solution\s*[:\-]/i,
             /^Note\s*[:\-]/i,
-            /^Hint\s*[:\-]/i
+            /^Hint\s*[:\-]/i,
+            /^Exp\.?\s*[:\-]/i,
+            /^Explain\s*[:\-]/i
         ];
         
         return explanationPatterns.some(pattern => pattern.test(line));
     }
 
     startNewSection(line) {
-        // Finalize current question before starting new section
         this.finalizeCurrentQuestion();
         
         this.currentSection = {
@@ -175,7 +259,6 @@ class EnhancedQuestionParser {
     }
 
     startNewQuestion(line) {
-        // Finalize previous question
         this.finalizeCurrentQuestion();
 
         const parsedQuestion = this.extractQuestionMetadata(line);
@@ -195,37 +278,77 @@ class EnhancedQuestionParser {
     addOption(line) {
         if (!this.currentQuestion) return;
         
-        // Clean the option text
-        const cleanOption = line.replace(/^\(?([A-D])[\.\)]\s*/i, '').trim();
+        let cleanOption = line;
+        let optionLetter = null;
         
-        // Extract option letter
-        const optionLetter = line.match(/^\(?([A-D])[\.\)]/i)?.[1]?.toUpperCase();
+        const patterns = [
+            /^\(?\s*([A-Da-d])\s*[\.\)\:\-]\s*(.+)$/i,
+            /^\[\s*([A-Da-d])\s*\]\s*(.+)$/i,
+            /^[A-Da-d]\s*\)\s*(.+)$/i,
+            /^[A-Da-d]\s*\.\s*(.+)$/i,
+            /^(?:Option|Ans)\s*[A-Da-d]\s*[\.\)\:\-]\s*(.+)$/i
+        ];
         
-        this.currentQuestion.options.push({
-            label: optionLetter,
-            text: cleanOption
-        });
+        for (const pattern of patterns) {
+            const match = line.match(pattern);
+            if (match) {
+                optionLetter = match[1].toUpperCase();
+                cleanOption = match[2].trim();
+                break;
+            }
+        }
         
-        console.log('Added option:', optionLetter, '-', cleanOption.substring(0, 30));
+        if (!optionLetter) {
+            const letterMatch = line.match(/^([A-Da-d])/i);
+            if (letterMatch) {
+                optionLetter = letterMatch[1].toUpperCase();
+                cleanOption = line.replace(/^[A-Da-d][\.\)\:\-]\s*/, '').trim();
+            }
+        }
+        
+        if (optionLetter) {
+            this.currentQuestion.options.push({
+                label: optionLetter,
+                text: cleanOption
+            });
+            
+            console.log('Added option:', optionLetter, '-', cleanOption.substring(0, 30));
+        }
     }
 
     setCorrectAnswer(line) {
         if (!this.currentQuestion) return;
         
-        // Extract the correct answer letter - handle "Correct: A" format
-        const match = line.match(/Correct\s*[:\-]\s*([A-D])/i);
-        if (match) {
-            const correctLetter = match[1].toUpperCase();
-            this.currentQuestion.correct_answer = correctLetter;
-            console.log('Set correct answer:', correctLetter);
-        } else {
-            // Fallback to any A-D in the line
-            const fallbackMatch = line.match(/[A-D]/i);
-            if (fallbackMatch) {
-                const correctLetter = fallbackMatch[0].toUpperCase();
-                this.currentQuestion.correct_answer = correctLetter;
-                console.log('Set correct answer (fallback):', correctLetter);
+        const patterns = [
+            /Correct\s*[:\-]\s*([A-D])/i,
+            /Answer\s*[:\-]\s*([A-D])/i,
+            /Ans\s*[:\.\-]\s*([A-D])/i,
+            /Solution\s*[:\-]\s*([A-D])/i,
+            /^([A-D])\s*is\s*correct/i,
+            /The\s*correct\s*answer\s*is\s*([A-D])/i,
+            /Correct\s*Ans\s*[:\-]\s*([A-D])/i,
+            /^([A-D])\s+Correct/i,
+            /Correct\s+([A-D])\s*$/i,
+            /^\s*([A-D])\s*$/i
+        ];
+        
+        for (const pattern of patterns) {
+            const match = line.match(pattern);
+            if (match) {
+                const correctLetter = match[1].toUpperCase();
+                if (['A', 'B', 'C', 'D'].includes(correctLetter)) {
+                    this.currentQuestion.correct_answer = correctLetter;
+                    console.log('Set correct answer:', correctLetter);
+                    return;
+                }
             }
+        }
+        
+        const fallbackMatch = line.match(/[A-D]/i);
+        if (fallbackMatch) {
+            const correctLetter = fallbackMatch[0].toUpperCase();
+            this.currentQuestion.correct_answer = correctLetter;
+            console.log('Set correct answer (fallback):', correctLetter);
         }
     }
 
@@ -240,18 +363,15 @@ class EnhancedQuestionParser {
     addQuestionContent(line) {
         if (!this.currentQuestion) return;
         
-        // Add additional content to the question text
         this.currentQuestion.question_text += ' ' + line;
     }
 
     finalizeCurrentQuestion() {
         if (this.currentQuestion && this.currentQuestion.options.length > 0) {
-            // Add question to current section
             if (this.currentSection) {
                 this.currentSection.questions.push(this.currentQuestion);
             }
             
-            // Add to global questions array
             this.questions.push(this.currentQuestion);
             
             console.log('Finalized question with', this.currentQuestion.options.length, 'options');
@@ -263,8 +383,13 @@ class EnhancedQuestionParser {
     extractQuestionMetadata(line) {
         const patterns = [
             /^Q\.?\s*(\d+)\s*[\.\):\-]?\s*(.+)$/i,
+            /^Q\s*\.\s*(\d+)\s*[\.\):\-]?\s*(.+)$/i,
             /^Question\s*(\d+)\s*[:\.\)-]?\s*(.+)$/i,
-            /^(\d+)\s*[\.\)]\s*(.+)$/i
+            /^Que\.?\s*(\d+)\s*[:\.\)-]?\s*(.+)$/i,
+            /^(\d+)\s*[\.\)]\s*(.+)$/i,
+            /^\(\s*(\d+)\s*\)\s*(.+)$/i,
+            /^\[\s*(\d+)\s*\]\s*(.+)$/i,
+            /^([Qq]|[Qq]uestion)\s*[\.\:\-\)]*\s*(\d+)\s*[:\.\)]?\s*(.+)$/i
         ];
 
         for (const pattern of patterns) {
@@ -272,7 +397,7 @@ class EnhancedQuestionParser {
             if (match) {
                 return {
                     number: Number(match[1]),
-                    text: match[2].trim()
+                    text: match[match.length - 1].trim()
                 };
             }
         }
@@ -301,7 +426,6 @@ class EnhancedQuestionParser {
         }
     }
 
-    // Alternative parsing method for different document formats
     parseAlternativeFormat(text) {
         const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         const questions = [];
@@ -310,15 +434,12 @@ class EnhancedQuestionParser {
         let questionNumber = 0;
         
         for (const line of lines) {
-            // Look for numbered questions
-            const questionMatch = line.match(/^(\d+)[\.\)]\s*(.+)/);
+            const questionMatch = line.match(/^(\d+)\s*[\.\)\:\-]?\s*(.+)/);
             if (questionMatch) {
-                // Save previous question
                 if (currentQuestion) {
                     questions.push(currentQuestion);
                 }
                 
-                // Start new question
                 questionNumber++;
                 currentQuestion = {
                     question_number: questionNumber,
@@ -328,9 +449,8 @@ class EnhancedQuestionParser {
                     explanation: null
                 };
             }
-            // Look for options
-            else if (currentQuestion && line.match(/^[A-D][\.\)]/i)) {
-                const optionMatch = line.match(/^([A-D])[\.\)]\s*(.+)/);
+            else if (currentQuestion && line.match(/^[A-Da-d][\.\)\:\-]?\s*\w/i)) {
+                const optionMatch = line.match(/^([A-Da-d])\s*[\.\)\:\-]?\s*(.+)/);
                 if (optionMatch) {
                     currentQuestion.options.push({
                         label: optionMatch[1].toUpperCase(),
@@ -338,7 +458,6 @@ class EnhancedQuestionParser {
                     });
                 }
             }
-            // Look for correct answer
             else if (currentQuestion && line.match(/correct|answer/i)) {
                 const answerMatch = line.match(/([A-D])/i);
                 if (answerMatch) {
@@ -347,7 +466,6 @@ class EnhancedQuestionParser {
             }
         }
         
-        // Save last question
         if (currentQuestion) {
             questions.push(currentQuestion);
         }

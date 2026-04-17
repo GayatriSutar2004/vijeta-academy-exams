@@ -90,6 +90,7 @@ router.get('/:examId/questions/:studentId', async (req, res) => {
                 q.negative_marks,
                 q.difficulty_level,
                 q.explanation_text,
+                q.image_path,
                 MIN(eq.default_sequence) as default_sequence,
                 GROUP_CONCAT(
                     CONCAT(qo.option_label, ') ', qo.option_text) 
@@ -117,7 +118,8 @@ router.get('/:examId/questions/:studentId', async (req, res) => {
             marks: q.marks,
             negative_marks: q.negative_marks,
             difficulty_level: q.difficulty_level,
-            explanation: q.explanation_text
+            explanation: q.explanation_text,
+            image_path: q.image_path || null
         }));
         
         // Get sections if available (from parsed data)

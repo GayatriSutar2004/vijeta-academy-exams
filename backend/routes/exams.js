@@ -231,17 +231,18 @@ async function insertParsedQuestions(parsedData, examId, filePath, res, assignme
       try {
         // Insert the question
         const [questionResult] = await db.query(
-          `INSERT INTO questions (exam_type_id, subject_id, question_text, marks, negative_marks, difficulty_level, explanation_text, created_by, section_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO questions (exam_type_id, subject_id, question_text, marks, negative_marks, difficulty_level, explanation_text, created_by, section_name, image_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
-            1, // exam_type_id (will be updated later)
-            1, // subject_id
+            1,
+            1,
             question.question_text,
-            1.00, // marks
-            0.00, // negative_marks
-            'Medium', // difficulty_level
+            1.00,
+            0.00,
+            'Medium',
             question.explanation || null,
-            1, // created_by
-            question.section || 'General'
+            1,
+            question.section || 'General',
+            question.image_path || null
           ]
         );
         
@@ -370,7 +371,8 @@ router.get('/:examId/questions', async (req, res) => {
         marks: question.marks,
         negative_marks: question.negative_marks,
         difficulty_level: question.difficulty_level,
-        explanation: question.explanation_text
+        explanation: question.explanation_text,
+        image_path: question.image_path || null
       });
     }
     

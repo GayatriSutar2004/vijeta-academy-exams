@@ -511,6 +511,21 @@ export default function StudentExam() {
                                         {question.question_text}
                                     </div>
 
+                                    {question.image_path && (
+                                        <div style={{ marginTop: "15px", textAlign: "center" }}>
+                                            <img 
+                                                src={question.image_path} 
+                                                alt="Question illustration" 
+                                                style={{ 
+                                                    maxWidth: "100%", 
+                                                    maxHeight: "400px",
+                                                    borderRadius: "8px",
+                                                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+                                                }} 
+                                            />
+                                        </div>
+                                    )}
+
                                     <div className={styles.optionsContainer}>
                                         {question.options.map((option, optionIndex) => {
                                             const parsedOption = parseOption(option);
