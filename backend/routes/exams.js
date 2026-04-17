@@ -431,4 +431,39 @@ function parseQuestionsFromText(text) {
   return questions;
 }
 
+// Update exam
+router.put('/:examId', async (req, res) => {
+  const examId = req.params.examId;
+  const { 
+    exam_name, 
+    exam_date, 
+    exam_time, 
+    duration_minutes, 
+    exam_status,
+    exam_type,
+    target_batch_name,
+    target_admission_year
+  } = req.body;
+  
+  try {
+    await db.query(
+      `UPDATE exams SET 
+        exam_name = ?, 
+        exam_date = ?, 
+        exam_time = ?, 
+        duration_minutes = ?,
+        exam_status = ?,
+        exam_type = ?,
+        target_batch_name = ?,
+        target_admission_year = ?
+      WHERE exam_id = ?`,
+      [exam_name, exam_date, exam_time, duration_minutes, exam_status, exam_type, target_batch_name, target_admission_year, examId]
+    );
+    res.json({ message: "Exam updated successfully" });
+  } catch(err) {
+    console.log("DB ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

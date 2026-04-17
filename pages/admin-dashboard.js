@@ -27,6 +27,11 @@ export default function AdminDashboard() {
   const [minute, setMinute] = useState("");
   const [date, setDate] = useState("");
   const [editingExam, setEditingExam] = useState(null);
+  const [editDuration, setEditDuration] = useState("");
+  const [editExamType, setEditExamType] = useState("");
+  const [editTargetBatch, setEditTargetBatch] = useState("");
+  const [editTargetYear, setEditTargetYear] = useState("");
+  const [editStatus, setEditStatus] = useState("");
 
   // Student form state
   const [sName, setSName] = useState("");
@@ -233,6 +238,11 @@ export default function AdminDashboard() {
     const timeParts = (exam.exam_time || "09:00:00").split(":");
     setHour(timeParts[0] || "09");
     setMinute(timeParts[1] || "00");
+    setEditDuration(exam.duration_minutes || "");
+    setEditExamType(exam.exam_type || "");
+    setEditTargetBatch(exam.target_batch_name || "");
+    setEditTargetYear(exam.target_admission_year || "");
+    setEditStatus(exam.exam_status || "Available");
     setEditMode(true);
   };
 
@@ -268,7 +278,12 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           exam_name: examName,
           exam_date: date,
-          exam_time: `${hour}:${minute}:00`
+          exam_time: `${hour}:${minute}:00`,
+          duration_minutes: parseInt(editDuration) || 30,
+          exam_status: editStatus,
+          exam_type: editExamType,
+          target_batch_name: editTargetBatch,
+          target_admission_year: parseInt(editTargetYear) || null
         })
       });
       if (res.ok) {
@@ -1481,15 +1496,105 @@ export default function AdminDashboard() {
                 <div className={styles.card}>
                   <h2>Edit Exam</h2>
 
-                  <input value={examName} onChange={(e)=>setExamName(e.target.value)} placeholder="Exam Name"/>
-                  <input value={hour} onChange={(e)=>setHour(e.target.value)} placeholder="Hour"/>
-                  <input value={minute} onChange={(e)=>setMinute(e.target.value)} placeholder="Minute"/>
-                  <input type="date" value={date} onChange={(e)=>setDate(e.target.value)}/>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Exam Name</label>
+                      <input 
+                        value={examName} 
+                        onChange={(e)=>setExamName(e.target.value)} 
+                        placeholder="Exam Name"
+                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Exam Type</label>
+                      <select 
+                        value={editExamType} 
+                        onChange={(e)=>setEditExamType(e.target.value)}
+                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                      >
+                        <option value="">Select Type</option>
+                        <option value="NDA">NDA</option>
+                        <option value="SSC">SSC</option>
+                        <option value="CET">CET</option>
+                        <option value="NEET">NEET</option>
+                        <option value="JEE">JEE</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Target Batch</label>
+                      <input 
+                        value={editTargetBatch} 
+                        onChange={(e)=>setEditTargetBatch(e.target.value)} 
+                        placeholder="e.g., SSC-A"
+                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Target Year</label>
+                      <input 
+                        type="number"
+                        value={editTargetYear} 
+                        onChange={(e)=>setEditTargetYear(e.target.value)} 
+                        placeholder="e.g., 2024"
+                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Date</label>
+                      <input 
+                        type="date" 
+                        value={date} 
+                        onChange={(e)=>setDate(e.target.value)}
+                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Time</label>
+                      <div style={{ display: 'flex', gap: '5px' }}>
+                        <input 
+                          value={hour} 
+                          onChange={(e)=>setHour(e.target.value)} 
+                          placeholder="HH"
+                          style={{ width: '50%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                        />
+                        <input 
+                          value={minute} 
+                          onChange={(e)=>setMinute(e.target.value)} 
+                          placeholder="MM"
+                          style={{ width: '50%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Duration (minutes)</label>
+                      <input 
+                        type="number"
+                        value={editDuration} 
+                        onChange={(e)=>setEditDuration(e.target.value)} 
+                        placeholder="e.g., 30"
+                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Status</label>
+                      <select 
+                        value={editStatus} 
+                        onChange={(e)=>setEditStatus(e.target.value)}
+                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                      >
+                        <option value="Available">Available</option>
+                        <option value="Scheduled">Scheduled</option>
+                        <option value="Expired">Expired</option>
+                        <option value="Draft">Draft</option>
+                      </select>
+                    </div>
+                  </div>
 
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                    <button className={styles.btn} onClick={handleUpdateExam}>Save</button>
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                    <button className={styles.btn} onClick={handleUpdateExam}>Save Changes</button>
                     <button className={`${styles.btn} ${styles.logoutBtn}`} onClick={() => handleDeleteExam(editingExam.exam_id)}>Delete</button>
-                    <button className={styles.btn} onClick={() => { setEditMode(false); setEditingExam(null); }}>Back</button>
+                    <button className={styles.btn} onClick={() => { setEditMode(false); setEditingExam(null); }}>Cancel</button>
                   </div>
                 </div>
               )}
