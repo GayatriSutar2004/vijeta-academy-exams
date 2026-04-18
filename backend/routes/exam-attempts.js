@@ -68,15 +68,18 @@ router.post('/', async (req, res) => {
                 WHERE qo.question_id = ? AND qo.is_correct = 1
             `, [questionId]);
             
-            const numericAnswer = labelToNumber[selectedAnswer] || selectedAnswer;
             const correctLabel = correctAnswer.length > 0 ? correctAnswer[0].option_label : null;
-            const numericCorrect = correctLabel ? (labelToNumber[correctLabel] || correctLabel) : null;
-            const isCorrect = correctLabel && correctLabel === selectedAnswer ? 1 : 0;
+            
+            // Compare labels (both as uppercase strings) before converting to numbers
+            const isCorrect = (correctLabel && correctLabel.toUpperCase() === selectedAnswer.toString().toUpperCase()) ? 1 : 0;
+            
+            // Store the letter label, not the number
+            const storedAnswer = selectedAnswer.toString().toUpperCase();
             
             await connection.query(`
                 INSERT INTO student_responses (attempt_id, question_id, selected_answer, is_correct)
                 VALUES (?, ?, ?, ?)
-            `, [attemptId, questionId, numericAnswer, isCorrect]);
+            `, [attemptId, questionId, storedAnswer, isCorrect]);
         }
         
         console.log('Calculating performance...');
