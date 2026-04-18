@@ -715,7 +715,7 @@ export default function AdminDashboard() {
 
                   <input 
                     type="file" 
-                    accept=".docx,.doc,.txt" 
+                    accept=".docx,.doc,.txt,.pdf,.xlsx,.xls,.csv" 
                     onChange={(e)=>{
                       console.log("File selected:", e.target.files[0]);
                       setCFile(e.target.files[0]);

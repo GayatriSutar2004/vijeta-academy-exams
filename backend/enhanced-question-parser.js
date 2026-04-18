@@ -538,6 +538,130 @@ class EnhancedQuestionParser {
         
         return questions;
     }
+
+    parseExcelData(jsonData) {
+        const questions = [];
+        let currentQuestion = null;
+        
+        for (let i = 0; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            if (!row || row.length === 0) continue;
+            
+            // Assume first column is question number/text, then options, then answer
+            const cell0 = String(row[0] || '').trim();
+            const cell1 = String(row[1] || '').trim();
+            const cell2 = String(row[2] || '').trim();
+            const cell3 = String(row[3] || '').trim();
+            const cell4 = String(row[4] || '').trim();
+            const cell5 = String(row[5] || '').trim();
+            
+            // Check if first cell looks like a question number
+            if (cell0.match(/^\d+[\.\)\:]?\s*.+/)) {
+                if (currentQuestion && currentQuestion.options.length >= 2) {
+                    questions.push(currentQuestion);
+                }
+                currentQuestion = {
+                    question_number: parseInt(cell0.match(/^\d+/)[0]),
+                    question_text: cell0.replace(/^\d+[\.\)\:]?\s*/, ''),
+                    options: [],
+                    correct_answer: null,
+                    explanation: null,
+                    section: 'General'
+                };
+            } else if (currentQuestion && cell0.match(/^[A-D]\)/i)) {
+                currentQuestion.options.push({ label: cell0.charAt(0).toUpperCase(), text: cell0.replace(/^[A-D]\)\s*/, '') });
+            } else if (currentQuestion) {
+                // Try to add as option
+                if (cell1 && cell1.match(/^[A-D]\)/i)) {
+                    currentQuestion.options.push({ label: cell1.charAt(0).toUpperCase(), text: cell1.replace(/^[A-D]\)\s*/, '') });
+                }
+                if (cell2 && cell2.match(/^[A-D]\)/i)) {
+                    currentQuestion.options.push({ label: cell2.charAt(0).toUpperCase(), text: cell2.replace(/^[A-D]\)\s*/, '') });
+                }
+                if (cell3 && cell3.match(/^[A-D]\)/i)) {
+                    currentQuestion.options.push({ label: cell3.charAt(0).toUpperCase(), text: cell3.replace(/^[A-D]\)\s*/, '') });
+                }
+                // Check for correct answer in later columns
+                const answerCell = [cell4, cell5].find(c => c && c.match(/^[A-D]$/i));
+                if (answerCell) {
+                    currentQuestion.correct_answer = answerCell.toUpperCase();
+                }
+            }
+        }
+        
+        if (currentQuestion && currentQuestion.options.length >= 2) {
+            questions.push(currentQuestion);
+        }
+        
+        this.questions = questions;
+        this.sections = [{ name: 'General', questions: questions }];
+        
+        console.log('Parsed Excel data:', questions.length, 'questions');
+        return { sections: this.sections, questions: this.questions };
+    }
+
+    parseCSVData(csvText) {
+        const questions = [];
+        const lines = csvText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        
+        // Check if first line is header
+        const firstLine = lines[0].toLowerCase();
+        let hasHeader = firstLine.includes('question') || firstLine.includes('option');
+        let startRow = hasHeader ? 1 : 0;
+        
+        for (let i = startRow; i < lines.length; i++) {
+            const line = lines[i];
+            // Handle CSV with quotes
+            const parts = line.match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g);
+            if (!parts) continue;
+            
+            const cleanedParts = parts.map(p => p.replace(/^"|"$/g, '').trim());
+            
+            if (cleanedParts.length < 2) continue;
+            
+            const questionText = cleanedParts[0] || '';
+            if (!questionText) continue;
+            
+            // Options are in columns 1-4
+            const options = [];
+            for (let j = 1; j <= 4 && j < cleanedParts.length; j++) {
+                if (cleanedParts[j] && cleanedParts[j].length > 0) {
+                    options.push({ 
+                        label: String.fromCharCode(64 + j), // A, B, C, D
+                        text: cleanedParts[j] 
+                    });
+                }
+            }
+            
+            // Correct answer is in column 5 (index 4)
+            let correctAnswer = null;
+            if (cleanedParts.length > 4 && cleanedParts[4]) {
+                const ans = cleanedParts[4].toString().trim();
+                if (ans.match(/^[0-3]$/)) {
+                    correctAnswer = parseInt(ans); // Number index 0-3
+                } else if (ans.match(/^[A-D]$/i)) {
+                    correctAnswer = ans.toUpperCase().charCodeAt(0) - 65; // A-D to 0-3
+                }
+            }
+            
+            if (options.length >= 2) {
+                questions.push({
+                    question_number: questions.length + 1,
+                    question_text: questionText,
+                    options: options,
+                    correct_answer: correctAnswer,
+                    explanation: null,
+                    section: 'General'
+                });
+            }
+        }
+        
+        this.questions = questions;
+        this.sections = [{ name: 'General', questions: questions }];
+        
+        console.log('Parsed CSV data:', questions.length, 'questions');
+        return { sections: this.sections, questions: this.questions };
+    }
 }
 
 module.exports = EnhancedQuestionParser;

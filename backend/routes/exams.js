@@ -104,24 +104,64 @@ router.post('/add', upload.single('file'), async (req, res) => {
 
     // Now parse the file based on extension
     const fileExtension = file.originalname.split('.').pop().toLowerCase();
+    console.log('FILE EXTENSION:', fileExtension, '| Filename:', file.originalname);
     
     let parsedData;
 
+    const allowedExtensions = ['docx', 'doc', 'txt', 'xlsx', 'xls', 'csv', 'pdf'];
+    if (!allowedExtensions.includes(fileExtension)) {
+      return res.status(400).json({ error: "Unsupported file type. Please upload .docx, .doc, .txt, .xlsx, .xls, .csv, or .pdf files." });
+    }
+
+    // Parse based on file extension
     if (fileExtension === 'docx' || fileExtension === 'doc') {
       // Parse Word document with enhanced parser
       const parser = new EnhancedQuestionParser();
       parsedData = await parser.parseWordDocument(file.path);
     } else if (fileExtension === 'txt') {
-      // Parse text file with enhanced parser
+      // Parse text file
       const parser = new EnhancedQuestionParser();
       const text = fs.readFileSync(file.path, 'utf8');
       parser.parseDocumentContent(text);
-      parsedData = {
-        sections: parser.sections,
-        questions: parser.questions
-      };
-    } else {
-      return res.status(400).json({ error: "Unsupported file type. Please upload .docx, .doc, or .txt files." });
+      parsedData = { sections: parser.sections, questions: parser.questions };
+    } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+      // Parse Excel file - try xlsx library
+      try {
+        const XLSX = require('xlsx');
+        const workbook = XLSX.readFile(file.path);
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const parser = new EnhancedQuestionParser();
+        parsedData = parser.parseExcelData(jsonData);
+      } catch (excelError) {
+        cleanupUploadedFile(file.path);
+        return res.status(400).json({ error: 'Failed to parse Excel file. Please ensure the file is a valid Excel format.' });
+      }
+    } else if (fileExtension === 'csv') {
+      // Parse CSV file
+      try {
+        const parser = new EnhancedQuestionParser();
+        const text = fs.readFileSync(file.path, 'utf8');
+        parser.parseCSVData(text);
+        parsedData = { sections: parser.sections, questions: parser.questions };
+      } catch (csvError) {
+        cleanupUploadedFile(file.path);
+        return res.status(400).json({ error: 'Failed to parse CSV file. Please ensure the file is valid CSV format.' });
+      }
+    } else if (fileExtension === 'pdf') {
+      // Parse PDF file - try pdf-parse
+      try {
+        const pdf = require('pdf-parse');
+        const dataBuffer = fs.readFileSync(file.path);
+        const pdfData = await pdf(dataBuffer);
+        const parser = new EnhancedQuestionParser();
+        parser.parseDocumentContent(pdfData.text);
+        parsedData = { sections: parser.sections, questions: parser.questions };
+      } catch (pdfError) {
+        cleanupUploadedFile(file.path);
+        return res.status(400).json({ error: 'Failed to parse PDF file. Please install pdf-parse library or convert to .docx format.' });
+      }
     }
 
     if (!parsedData.questions.length && (fileExtension === 'docx' || fileExtension === 'doc')) {
