@@ -91,7 +91,8 @@ router.post('/', async (req, res) => {
         `, [attemptId]);
         
         const performance = performanceResult[0];
-        const maxMarks = Number(exam.total_marks || 0);
+        const totalQuestions = Number(exam.total_questions || 0);
+        const maxMarks = totalQuestions; // Each question has 1 mark by default
         const percentage = maxMarks > 0
             ? (Number(performance.marks_obtained || 0) / maxMarks) * 100
             : 0;
