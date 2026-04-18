@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import styles from "../styles/Login.module.css";
 import { useRouter } from "next/router";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export default function AdminLogin() {
   const router = useRouter();
 
@@ -10,7 +12,6 @@ export default function AdminLogin() {
 
   const handleLogin = async () => {
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://vijeta-api.onrender.com';
       const res = await fetch(`${API_URL}/api/admin/login`, {
         method: "POST",
         headers: {

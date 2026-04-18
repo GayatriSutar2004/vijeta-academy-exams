@@ -21,13 +21,15 @@ export default function StudentDashboard() {
     fetchExams(student.student_id);
   }, []);
 
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
   const fetchExams = async (studentId) => {
     try {
-      const res = await fetch(`https://vijeta-api.onrender.com/api/student-exams/available/${studentId}`);
+      const res = await fetch(`${API_URL}/api/student-exams/available/${studentId}`);
       const data = await res.json();
       
       // Fetch attempted exams to mark status
-      const attemptRes = await fetch(`https://vijeta-api.onrender.com/api/exam-attempts/student/${studentId}`);
+      const attemptRes = await fetch(`${API_URL}/api/exam-attempts/student/${studentId}`);
       const attemptData = await attemptRes.json();
       const attemptedExamIds = Array.isArray(attemptData) ? attemptData.map(a => a.exam_id) : [];
 
@@ -254,7 +256,8 @@ export default function StudentDashboard() {
                         className={styles.button}
                         onClick={() => {
                           // Find attempt ID for this exam
-                          fetch(`https://vijeta-api.onrender.com/api/exam-attempts/student/${studentData.student_id}`)
+                          const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+                          fetch(`${API_URL}/api/exam-attempts/student/${studentData.student_id}`)
                             .then(res => res.json())
                             .then(attempts => {
                               const attempt = attempts.find(a => a.exam_id === exam.exam_id);

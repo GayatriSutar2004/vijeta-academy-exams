@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useRouter } from "next/router";
 import styles from "../styles/Login.module.css";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export default function StudentLogin() {
   const router = useRouter();
 
@@ -16,7 +18,7 @@ export default function StudentLogin() {
     }
 
     try {
-      const res = await fetch("https://vijeta-api.onrender.com/api/students/login", {
+      const res = await fetch(`${API_URL}/api/students/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

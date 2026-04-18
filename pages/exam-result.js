@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import styles from '../styles/Exam.module.css';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export default function ExamResult() {
     const router = useRouter();
     const [result, setResult] = useState(null);
@@ -17,7 +19,7 @@ export default function ExamResult() {
 
     const fetchExamResult = async (attemptId) => {
         try {
-            const response = await fetch(`https://vijeta-api.onrender.com/api/exam-attempts/${attemptId}`);
+            const response = await fetch(`${API_URL}/api/exam-attempts/${attemptId}`);
             const data = await response.json();
 
             if (response.ok) {

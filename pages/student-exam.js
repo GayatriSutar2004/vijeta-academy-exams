@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import styles from '../styles/Exam.module.css';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 const MAX_TAB_SWITCH_WARNINGS = 3;
 const VIOLATION_COOLDOWN_MS = 1500;
 
@@ -176,7 +178,7 @@ const getFullscreenElement = () =>
 
     const checkExamAccess = async (examId, studentId) => {
         try {
-            const response = await fetch(`https://vijeta-api.onrender.com/api/student-exams/${examId}/check-access/${studentId}`);
+            const response = await fetch(`${API_URL}/api/student-exams/${examId}/check-access/${studentId}`);
             const data = await response.json();
 
             if (response.status === 403 || response.status === 404) {
@@ -200,7 +202,7 @@ const getFullscreenElement = () =>
 
     const loadExamQuestions = async (examId, studentId) => {
         try {
-            const response = await fetch(`https://vijeta-api.onrender.com/api/student-exams/${examId}/questions/${studentId}`);
+            const response = await fetch(`${API_URL}/api/student-exams/${examId}/questions/${studentId}`);
             const data = await response.json();
 
             if (response.ok) {
@@ -297,7 +299,7 @@ const getFullscreenElement = () =>
             const totalDuration = currentExamData.exam.duration_minutes * 60;
             const timeTaken = totalDuration - (timeRemainingRef.current || 0);
 
-            const response = await fetch('https://vijeta-api.onrender.com/api/exam-attempts', {
+            const response = await fetch(`${API_URL}/api/exam-attempts`, {
                 method: 'POST',
                 headers: {
                     'Accept': 'application/json',
