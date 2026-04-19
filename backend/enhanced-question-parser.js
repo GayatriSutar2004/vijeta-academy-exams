@@ -192,6 +192,7 @@ class EnhancedQuestionParser {
     }
 
     isQuestionStart(line) {
+        // More flexible patterns for question detection
         const questionPatterns = [
             /^Q\.?\s*\d+/i,
             /^Q\s*\.\s*\d+/i,
@@ -199,7 +200,10 @@ class EnhancedQuestionParser {
             /^\d+[\.\)]\s*/i,
             /^Que\.?\s*\d+/i,
             /^\(\d+\)\s*/i,
-            /^\[\d+\]\s*/i
+            /^\[\d+\]\s*/i,
+            /^QNO\s*\.?\s*\d+/i,
+            /^QUESTION\s*NO\s*\.?\s*\d+/i,
+            /^\d+\.\s+\w/  // e.g., "1. What is..." - questions starting with number followed by text
         ];
         
         if (questionPatterns.some(pattern => pattern.test(line)) && !this.isSectionHeader(line)) {
@@ -215,6 +219,7 @@ class EnhancedQuestionParser {
     }
 
     isOption(line) {
+        // More flexible patterns for option detection
         const optionPatterns = [
             /^[A-D]\)\s*/i,
             /^[A-D]\.\s*/i,
@@ -227,7 +232,15 @@ class EnhancedQuestionParser {
             /^[A-D]\s*\./i,
             /^\s*[A-D]\s*[\.\)]\s*/i,
             /^\(\s*[A-D]\s*\)\s*/i,
-            /^\s*\[\s*[A-D]\s*\]\s*/i
+            /^\s*\[\s*[A-D]\s*\]\s*/i,
+            /^a\.\s*/i,
+            /^b\.\s*/i,
+            /^c\.\s*/i,
+            /^d\.\s*/i,
+            /^A\.\s+/i,
+            /^B\.\s+/i,
+            /^C\.\s+/i,
+            /^D\.\s+/i
         ];
         
         if (optionPatterns.some(pattern => pattern.test(line))) {
@@ -243,6 +256,7 @@ class EnhancedQuestionParser {
     }
 
     isCorrectAnswer(line) {
+        // More flexible patterns for answer detection
         const answerPatterns = [
             /^Correct\s*[:\-]/i,
             /^Answer\s*[:\-]/i,
@@ -254,7 +268,14 @@ class EnhancedQuestionParser {
             /^Correct\s*Ans\s*[:\-]/i,
             /^Right\s*Ans/i,
             /^\s*[A-D]\s+Correct/i,
-            /^\s*Correct\s+[A-D]/i
+            /^\s*Correct\s+[A-D]/i,
+            /^Correct:\s*[A-D]/i,
+            /^Answer:\s*[A-D]/i,
+            /^Ans:\s*[A-D]/i,
+            /^Ans\s+[A-D]/i,
+            /^Correct\s+[A-D]/i,
+            /^Answer\s+[A-D]/i,
+            /^(Correct|Answer)\s+(?:is\s+)?([A-D])/i
         ];
         
         return answerPatterns.some(pattern => pattern.test(line));
@@ -500,42 +521,52 @@ class EnhancedQuestionParser {
         let questionNumber = 0;
         
         for (const line of lines) {
-            const questionMatch = line.match(/^(\d+)\s*[\.\)\:\-]?\s*(.+)/);
+            // Check for question - more flexible pattern
+            const questionMatch = line.match(/^(?:Q\.?\.?|Question\.?\.?|Que\.?\.?)?\s*(\d+)\s*[\.\)\:\-]?\s*(.+)/i) 
+                || line.match(/^(\d+)\.\s+(.+)/);
+                
             if (questionMatch) {
-                if (currentQuestion) {
+                if (currentQuestion && currentQuestion.options.length >= 2) {
                     questions.push(currentQuestion);
                 }
                 
                 questionNumber++;
                 currentQuestion = {
                     question_number: questionNumber,
-                    question_text: questionMatch[2],
+                    question_text: questionMatch[2] || questionMatch[1],
                     options: [],
                     correct_answer: null,
                     explanation: null
                 };
             }
-            else if (currentQuestion && line.match(/^[A-Da-d][\.\)\:\-]?\s*\w/i)) {
-                const optionMatch = line.match(/^([A-Da-d])\s*[\.\)\:\-]?\s*(.+)/);
-                if (optionMatch) {
+            // Check for option
+            else if (currentQuestion && line.match(/^[A-Da-d][\.\)\:\-]\s*/i)) {
+                const optionMatch = line.match(/^([A-Da-d])\s*[\.\)\:\-]\s*(.+)/i);
+                if (optionMatch && optionMatch[2].length > 0) {
                     currentQuestion.options.push({
                         label: optionMatch[1].toUpperCase(),
-                        text: optionMatch[2]
+                        text: optionMatch[2].trim()
                     });
                 }
             }
-            else if (currentQuestion && line.match(/correct|answer/i)) {
-                const answerMatch = line.match(/([A-D])/i);
+            // Check for correct answer - more patterns
+            else if (currentQuestion && line.match(/^(Correct|Answer|Ans)\s*[:\-]?\s*([A-D])/i)) {
+                const answerMatch = line.match(/^(Correct|Answer|Ans)\s*[:\-]?\s*([A-D])/i);
                 if (answerMatch) {
-                    currentQuestion.correct_answer = answerMatch[1].toUpperCase();
+                    currentQuestion.correct_answer = answerMatch[2].toUpperCase();
                 }
+            }
+            // If line is just a single letter A-D at end of question, might be answer key
+            else if (currentQuestion && line.match(/^[A-D]$/i) && currentQuestion.options.length >= 2) {
+                currentQuestion.correct_answer = line.toUpperCase();
             }
         }
         
-        if (currentQuestion) {
+        if (currentQuestion && currentQuestion.options.length >= 2) {
             questions.push(currentQuestion);
         }
         
+        console.log('Alternative format parsed:', questions.length, 'questions');
         return questions;
     }
 
