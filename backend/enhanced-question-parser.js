@@ -633,14 +633,15 @@ class EnhancedQuestionParser {
                 }
             }
             
-            // Correct answer is in column 5 (index 4)
+            // Correct answer is in column 6 (index 5)
             let correctAnswer = null;
-            if (cleanedParts.length > 4 && cleanedParts[4]) {
-                const ans = cleanedParts[4].toString().trim();
+            if (cleanedParts.length > 5 && cleanedParts[5]) {
+                const ans = cleanedParts[5].toString().trim();
+                // Keep as letter (A-D), not convert to number
                 if (ans.match(/^[0-3]$/)) {
-                    correctAnswer = parseInt(ans); // Number index 0-3
+                    correctAnswer = String.fromCharCode(65 + parseInt(ans)); // 0-3 to A-D
                 } else if (ans.match(/^[A-D]$/i)) {
-                    correctAnswer = ans.toUpperCase().charCodeAt(0) - 65; // A-D to 0-3
+                    correctAnswer = ans.toUpperCase();
                 }
             }
             
