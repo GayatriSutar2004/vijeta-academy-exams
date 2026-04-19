@@ -85,23 +85,6 @@ router.post('/add', upload.single('file'), async (req, res) => {
     // First, insert the exam
     const creatorId = Number(created_by) || 1;
 
-    const [result] = await db.query(
-      `INSERT INTO exams (exam_name, duration_minutes, total_questions, exam_type_id, exam_type, target_batch_name, target_admission_year, exam_date, exam_time, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-      [
-        exam_name, 
-        duration_minutes, 
-        total_questions, 
-        examTypeId, 
-        exam_type || 'NDA', 
-        target_batch_name || null,
-        target_admission_year ? Number(target_admission_year) : null,
-        exam_date || new Date().toISOString().split('T')[0], 
-        exam_time || '09:00:00', 
-        creatorId
-      ]
-    );
-    const examId = result.insertId;
-
     // Now parse the file based on extension
     const fileExtension = file.originalname.split('.').pop().toLowerCase();
     console.log('FILE EXTENSION:', fileExtension, '| Filename:', file.originalname);
@@ -164,6 +147,7 @@ router.post('/add', upload.single('file'), async (req, res) => {
       }
     }
 
+    // If still no questions, run fallback parser
     if (!parsedData.questions.length && (fileExtension === 'docx' || fileExtension === 'doc')) {
       console.log('Primary parse returned 0 questions. Running fallback parser on raw text.');
       const fallbackText = (await mammoth.extractRawText({ path: file.path })).value;
@@ -181,6 +165,44 @@ router.post('/add', upload.single('file'), async (req, res) => {
         questions: fallbackQuestions
       };
     }
+
+    // Validate: Compare parsed questions with admin's expected total
+    const parsedQuestionCount = parsedData.questions.length;
+    const expectedQuestionCount = Number(total_questions);
+    console.log(`Question validation: Expected=${expectedQuestionCount}, Parsed=${parsedQuestionCount}`);
+    
+    if (parsedQuestionCount !== expectedQuestionCount) {
+      // Check if we have valid questions - if parsed count is reasonable but not matching
+      if (parsedQuestionCount > 0) {
+        cleanupUploadedFile(file.path);
+        return res.status(400).json({ 
+          error: `Question count mismatch! Expected ${expectedQuestionCount} questions but extracted ${parsedQuestionCount} questions from the file. Please check your document format and try again.`,
+          expected: expectedQuestionCount,
+          parsed: parsedQuestionCount
+        });
+      } else {
+        cleanupUploadedFile(file.path);
+        return res.status(400).json({ error: 'No questions could be extracted from the document. Please check the document format.' });
+      }
+    }
+
+    // If validation passes, create the exam
+    const [result] = await db.query(
+      `INSERT INTO exams (exam_name, duration_minutes, total_questions, exam_type_id, exam_type, target_batch_name, target_admission_year, exam_date, exam_time, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+      [
+        exam_name, 
+        duration_minutes, 
+        total_questions, 
+        examTypeId, 
+        exam_type || 'NDA', 
+        target_batch_name || null,
+        target_admission_year ? Number(target_admission_year) : null,
+        exam_date || new Date().toISOString().split('T')[0], 
+        exam_time || '09:00:00', 
+        creatorId
+      ]
+    );
+    const examId = result.insertId;
 
     if (!parsedData.questions.length) {
       const previewText = fileExtension === 'txt'
