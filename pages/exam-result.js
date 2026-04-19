@@ -198,7 +198,11 @@ export default function ExamResult() {
                                 
                                 <div className={styles.answerDetails}>
                                     <div className={styles.selectedAnswer}>
-                                        <strong>Your Answer:</strong> {response.selected_answer ? response.selected_answer : 'Not answered'}
+                                        <strong>Your Answer:</strong> {response.selected_answer ? 
+                                            (typeof response.selected_answer === 'number' ? 
+                                                String.fromCharCode(64 + response.selected_answer) : 
+                                                response.selected_answer) 
+                                            : 'Not answered'}
                                     </div>
                                     <div className={styles.correctAnswer}>
                                         <strong>Correct Answer:</strong> {response.correct_option_label ? response.correct_option_label + ') ' + response.correct_option_text : 'N/A'}
